@@ -2,21 +2,386 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>게임 준비 중</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PAST ME — Stage 1: 두 사람의 문 (고정 화면 2D 플랫폼 버전)</title>
 <style>
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-         background: #0d0b1e; color: #ecebff; font-family: system-ui, sans-serif; text-align: center; padding: 16px; }
-  h1 { font-size: 28px; }
-  p { color: #9a96c8; }
-  a { color: #3ee6ff; }
+  :root{color-scheme:dark;--ink:#f7f3ff;--edge:#b7a5de;--cyan:#8cddff;--purple:#28233e}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:#100f20;color:var(--ink);font-family:Arial,"Malgun Gothic","Apple SD Gothic Neo",sans-serif}
+  body{min-height:100vh;display:grid;place-items:center;overflow:hidden;padding:10px}
+  .game{position:relative;width:min(100%,1400px);aspect-ratio:16/9;max-height:calc(100vh - 20px);box-shadow:0 18px 64px #050410a6;border:1px solid #5b4a78;border-radius:12px;overflow:hidden;isolation:isolate;background:#1c1b35}
+  canvas{width:100%;height:100%;display:block;image-rendering:auto}
+  .layer{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(9,8,26,.75);backdrop-filter:blur(3px);padding:22px}
+  .layer.show{display:flex}
+  .panel{text-align:center;width:min(560px,96%);padding:clamp(20px,4vw,42px);background:linear-gradient(145deg,#34304e,#1a1831);border:2px solid #ab99d7;border-radius:22px;box-shadow:0 12px 50px #0009,inset 0 0 34px #9685c111}
+  .tag{color:#9bdbff;letter-spacing:.2em;font-weight:bold;font-size:clamp(10px,1.2vw,15px)}
+  h1{margin:8px 0 0;font-family:ui-monospace,Consolas,monospace;font-size:clamp(32px,5vw,64px);font-weight:900;font-style:italic;letter-spacing:1px;text-shadow:4px 5px #65577c}
+  h2{font-size:clamp(20px,2.5vw,30px);margin:10px 0 18px}
+  .desc{font-size:clamp(12px,1.35vw,17px);line-height:1.8;color:#e5def6;margin:0 0 18px}
+  .controls{background:#1a1a32;border:1px solid #74648f;border-radius:11px;padding:12px;font-size:clamp(12px,1.3vw,16px);line-height:1.85;margin:16px 0 22px}
+  button{border:2px solid #bddcff;border-radius:12px;padding:12px 28px;background:linear-gradient(#7ed7fd,#579de3);box-shadow:0 5px 0 #31518e;color:#091c37;font-weight:900;font-size:clamp(15px,1.6vw,20px);cursor:pointer;transition:filter .12s,transform .12s}
+  button:hover{filter:brightness(1.12)}button:active{transform:translateY(4px);box-shadow:0 1px 0 #31518e}
+  .secondary{background:linear-gradient(#493d69,#312d4b);color:#fff;box-shadow:0 5px 0 #161129;border-color:#ab99d7}
+  .buttons{display:flex;gap:13px;justify-content:center;flex-wrap:wrap}
+  .fine{font-size:clamp(11px,1.1vw,14px);color:#aebed7;margin:16px 0 0}
+  @media(max-width:600px){body{padding:0}.game{border-radius:0;max-height:100vh}.panel{padding:16px}.desc{line-height:1.5;margin-bottom:8px}.controls{margin:8px 0 12px;padding:6px}button{padding:9px 18px}}
 </style>
 </head>
 <body>
-  <div>
-    <h1>🛠️ 게임 준비 중</h1>
-    <p>내 작업실의 <b>⬆️ 게임 올리기</b>를 눌러<br>AI가 만들어 준 게임 코드를 <b>index.html</b> 이름으로 올리면<br>여기에 내 게임이 나타나요!</p>
-    <p><a href="../">← 내 작업실로</a></p>
-  </div>
+<main class="game" id="game" aria-label="PAST ME 스테이지 1 게임">
+  <canvas id="screen" width="1600" height="900" aria-label="과거의 분신과 협력하는 퍼즐 게임 화면"></canvas>
+  <section class="layer show" id="startLayer" aria-label="시작 화면">
+    <div class="panel">
+      <div class="tag">STAGE 01 · 2D SIDE-VIEW TIME PUZZLE</div>
+      <h1>PAST ME</h1>
+      <h2>두 사람의 문</h2>
+      <p class="desc">옆에서 바라보는 2D 플랫폼 게임!<br>10초 전의 분신이 발판을 밟도록 움직이고 문을 통과해 탈출하자.</p>
+      <div class="controls"><b>A / D</b> 좌우 이동 &nbsp;·&nbsp; <b>W / Space</b> 점프 &nbsp;·&nbsp; <b>S</b> 빠르게 내려오기<br><b>R</b> 다시 시작 &nbsp;·&nbsp; <b>ESC</b> 일시정지<br>10초간 움직임을 기록하고 다음 10초 동안 분신이 그대로 재생합니다.</div>
+      <button id="startBtn">게임 시작</button>
+      <p class="fine">마우스 없이 Enter 또는 Space로도 시작할 수 있어요.</p>
+    </div>
+  </section>
+  <section class="layer" id="pauseLayer" aria-label="일시정지 메뉴">
+    <div class="panel">
+      <div class="tag">PAUSE</div><h2>일시정지</h2>
+      <p class="desc">기록과 분신 재생 시간도 멈춥니다.</p>
+      <div class="buttons"><button id="resumeBtn">계속하기</button><button id="pauseRestartBtn" class="secondary">다시 시작</button></div>
+      <p class="fine">ESC를 다시 눌러도 계속할 수 있어요.</p>
+    </div>
+  </section>
+  <section class="layer" id="winLayer" aria-label="클리어 화면">
+    <div class="panel">
+      <div class="tag">STAGE CLEAR</div><h1>탈출 성공!</h1><h2>두 사람의 문 · 클리어</h2>
+      <p class="desc" id="winInfo">과거의 나와 협력해 출구에 도착했습니다.</p>
+      <button id="winRestartBtn">다시 하기</button>
+      <p class="fine">R 또는 Enter로도 다시 시작할 수 있어요.</p>
+    </div>
+  </section>
+</main>
+<script>
+'use strict';
+// ==========================================================
+// 설정값: 기획서에 없는 숫자는 이 부분만 수정하면 됩니다.
+// ==========================================================
+const SETTINGS = {
+  PLAYER_SPEED: 200,       // 좌우 이동 속도 (초당 픽셀)
+  RECORD_SECONDS: 10,      // 기획서에 명시된 분신 기록·재생 주기 (초)
+  FPS: 60,                // 위치 기록 및 게임 업데이트 (초당 횟수)
+  START_X: 300,           // 시작 위치 X
+  START_Y: 638,           // 시작 위치 Y (캐릭터 발 기준)
+  MIN_X: 146, MAX_X: 1495,// 양쪽 벽에 의한 이동 제한
+  FLOOR_Y: 638,           // 땅의 윗면: 플레이어는 이 아래로 떨어지지 않음
+  PLATE_TOP_Y: 632,       // 발판 윗면: 땅보다 6픽셀 높음
+  GRAVITY: 1500,          // 아래 방향 가속도 (픽셀/초²)
+  JUMP_VELOCITY: -550,    // 점프 시작 시 위 방향 속도 (픽셀/초)
+  FAST_FALL_MULTIPLIER: 2,// 공중에서 S를 누르면 낙하 가속도 두 배
+  PLAYER_HALF_WIDTH: 23, // 문과 충돌할 때 플레이어 반너비
+  PLATE_X: 800, PLATE_Y: 616, PLATE_W: 92, PLATE_H: 22,
+  DOOR_X: 1038, DOOR_W: 140,
+  EXIT_X: 1355, EXIT_W: 88,
+  EXIT_Y: 503, EXIT_H: 135
+};
+const LOOP_FRAMES = SETTINGS.RECORD_SECONDS * SETTINGS.FPS;
+const STEP = 1 / SETTINGS.FPS;
+const canvas = document.getElementById('screen');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+const layers = {start:$('startLayer'), pause:$('pauseLayer'), win:$('winLayer')};
+const keys = new Set();
+let mode = 'start', player, ghost, recording, frameInLoop, generations, totalFrames, plateActive, doorOpen, crossedWithGhost, prevX;
+let jumpQueued = false;
+let accumulator = 0, lastTime = 0;
+
+// 화면 구성을 시작·게임·일시정지·클리어로 분리합니다.
+function showLayer(which) {
+  for (const [id, el] of Object.entries(layers)) el.classList.toggle('show', id === which);
+}
+function resetGame() {
+  player = {x:SETTINGS.START_X,y:SETTINGS.START_Y,vy:0,grounded:true,dir:'right'};
+  ghost = null;                         // 첫 10초에는 분신이 없습니다.
+  recording = [{x:player.x,y:player.y}];
+  frameInLoop = 0;generations=0;totalFrames=0;
+  plateActive=false;doorOpen=false;crossedWithGhost=false;
+  keys.clear();jumpQueued=false;accumulator=0;mode='playing';showLayer('none');
+}
+function startGame() {resetGame();}
+function pauseGame() {if(mode==='playing'){mode='pause';keys.clear();jumpQueued=false;showLayer('pause');}}
+function resumeGame() {if(mode==='pause'){mode='playing';accumulator=0;showLayer('none');}}
+function winGame(){
+  mode='win';keys.clear();
+  $('winInfo').textContent=`${(totalFrames / SETTINGS.FPS).toFixed(1)}초 만에 과거의 나와 협력해 탈출했어요!`;
+  showLayer('win');
+}
+$('startBtn').addEventListener('click',startGame);
+$('resumeBtn').addEventListener('click',resumeGame);
+$('pauseRestartBtn').addEventListener('click',resetGame);
+$('winRestartBtn').addEventListener('click',resetGame);
+window.addEventListener('keydown',e=>{
+  const key=e.key.toLowerCase();
+  // 화살표/스페이스의 기본 스크롤을 막고, 클릭 없이 키보드를 받습니다.
+  if(['arrowup','arrowdown','arrowleft','arrowright',' ','spacebar','w','a','s','d','r','escape','enter'].includes(key)) e.preventDefault();
+  if(key==='r'){if(!e.repeat)resetGame();return;}
+  if(key==='escape'){if(e.repeat)return;if(mode==='playing')pauseGame();else if(mode==='pause')resumeGame();return;}
+  if(mode==='start'&&(key==='enter'||key===' ')){if(!e.repeat)startGame();return;}
+  if(mode==='win'&&(key==='enter'||key===' ')){if(!e.repeat)resetGame();return;}
+  if(mode==='playing'&&(['w','a','s','d',' '].includes(key))){
+    keys.add(key);
+    if((key==='w'||key===' ')&&!e.repeat)jumpQueued=true;
+  }
+},{passive:false});
+window.addEventListener('keyup',e=>{keys.delete(e.key.toLowerCase());});
+window.addEventListener('blur',()=>{keys.clear();if(mode==='playing')pauseGame();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='playing')pauseGame();});
+
+// 고정 화면 2D 플랫폼: 바닥 위에서만 이동하고 W/Space로 점프합니다.
+// 발판은 바닥보다 조금 높기 때문에 밟을 때 발이 자동으로 올라갑니다.
+function surfaceY(x){
+  return x>=SETTINGS.PLATE_X-12 && x<=SETTINGS.PLATE_X+SETTINGS.PLATE_W+12
+    ? SETTINGS.PLATE_TOP_Y : SETTINGS.FLOOR_Y;
+}
+// 발판 위에 *실제로 착지*했을 때만 문이 열리도록 판정합니다.
+function onPlate(p){
+  return !!p && p.x>=SETTINGS.PLATE_X-12 && p.x<=SETTINGS.PLATE_X+SETTINGS.PLATE_W+12
+    && Math.abs(p.y-SETTINGS.PLATE_TOP_Y)<3;
+}
+function inExit(p){
+  return p.x>SETTINGS.EXIT_X && p.x<SETTINGS.EXIT_X+SETTINGS.EXIT_W
+    && p.y>SETTINGS.EXIT_Y && p.y<=SETTINGS.FLOOR_Y+2;
+}
+function update(){
+  if(mode!=='playing')return;
+  prevX=player.x;
+  const dx=(keys.has('d')?1:0)-(keys.has('a')?1:0);
+  if(dx)player.dir=dx<0?'left':'right';
+  player.x=Math.max(SETTINGS.MIN_X,Math.min(SETTINGS.MAX_X,player.x+dx*SETTINGS.PLAYER_SPEED*STEP));
+  // 물리 처리: 중력/점프/착지. 화면 뒤쪽으로 위아래를 자유롭게 걷지 않습니다.
+  if(jumpQueued && player.grounded){player.vy=SETTINGS.JUMP_VELOCITY;player.grounded=false;}
+  jumpQueued=false;
+  const oldY=player.y;
+  const gravity=SETTINGS.GRAVITY*(keys.has('s')&&!player.grounded?SETTINGS.FAST_FALL_MULTIPLIER:1);
+  if(!player.grounded || player.vy<0){
+    player.vy+=gravity*STEP;
+    player.y+=player.vy*STEP;
+  }
+  const floor=surfaceY(player.x);
+  // 착지 시점: 아래 방향으로 움직이며 바닥 표면에 닿으면 중단
+  if(player.y>=floor || (player.grounded && player.y<floor && player.vy>=0)){
+    player.y=floor;player.vy=0;player.grounded=true;
+  }else if(player.grounded && oldY===SETTINGS.FLOOR_Y && floor===SETTINGS.PLATE_TOP_Y){
+    // 6px짜리 작은 발판은 계단처럼 걸어서 올라갈 수 있음
+    player.y=floor;player.vy=0;player.grounded=true;
+  }else if(player.y<floor){
+    player.grounded=false;
+  }
+  // 기록된 움직임은 X/Y까지 저장되어 분신도 점프와 착지를 정확히 따라합니다.
+  if(ghost){
+    const pos=ghost.path[Math.min(frameInLoop+1,ghost.path.length-1)];
+    if(pos){ghost.x=pos.x;ghost.y=pos.y;ghost.dir=pos.dir;}
+  }
+  const ghostHolding=onPlate(ghost);
+  plateActive=onPlate(player)||ghostHolding;
+  doorOpen=plateActive;
+  // 닫힌 문은 위아래로 점프해도 통과할 수 없는 단단한 벽입니다.
+  const left=SETTINGS.DOOR_X-SETTINGS.PLAYER_HALF_WIDTH;
+  const right=SETTINGS.DOOR_X+SETTINGS.DOOR_W+SETTINGS.PLAYER_HALF_WIDTH;
+  if(!doorOpen && player.x>left && player.x<right){
+    player.x=prevX<=left?left:prevX>=right?right:(player.x<(left+right)/2?left:right);
+  }
+  // 분신이 문을 열어준 경우에만 출구 클리어가 가능합니다.
+  if(ghostHolding && player.x>=right) crossedWithGhost=true;
+  recording.push({x:player.x,y:player.y,dir:player.dir});
+  frameInLoop++;totalFrames++;
+  if(crossedWithGhost && inExit(player)){winGame();return;}
+  // 10초마다 기존 분신을 새 분신으로 교체하며 동시에 1명만 유지합니다.
+  if(frameInLoop>=LOOP_FRAMES){
+    ghost={path:recording,x:recording[0].x,y:recording[0].y,dir:recording[0].dir};
+    recording=[{x:player.x,y:player.y,dir:player.dir}];
+    frameInLoop=0;generations++;
+    plateActive=onPlate(player)||onPlate(ghost);doorOpen=plateActive;
+  }
+}
+
+// ---------------- Canvas 그리기 ----------------
+const rect=(x,y,w,h,color)=>{ctx.fillStyle=color;ctx.fillRect(x,y,w,h);};
+function rounded(x,y,w,h,r,fill,stroke,line=3){
+  ctx.beginPath();ctx.roundRect(x,y,w,h,r);
+  if(fill){ctx.fillStyle=fill;ctx.fill();}
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=line;ctx.stroke();}
+}
+function label(text,x,y,font='bold 26px Arial, sans-serif',color='#f7f2ff',align='left'){
+  ctx.font=font;ctx.textAlign=align;ctx.textBaseline='middle';ctx.fillStyle=color;ctx.fillText(text,x,y);
+}
+function glow(x,y,r,color){
+  const g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,color);g.addColorStop(1,'transparent');
+  ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);
+}
+function wallTiles(){
+  // 목업을 본뜬 보라빛 타일 벽과 바닥, 고정 카메라입니다.
+  const bg=ctx.createLinearGradient(0,170,0,750);
+  bg.addColorStop(0,'#24243f');bg.addColorStop(1,'#292741');rect(0,0,1600,900,'#111026');
+  rect(96,143,1425,535,bg);
+  for(let y=190;y<645;y+=62){
+    for(let x=120;x<1520;x+=64){
+      rect(x,y,63,61,((x+y)%3===0)?'#27264133':'#11112a17');
+      rect(x,y,2,62,'#13112a3d');rect(x,y,64,2,'#17152d4d');
+    }
+  }
+  // 상단 벽돌 띠와 양쪽 기둥.
+  for(let x=96;x<1522;x+=65){rect(x,158,63,29,'#595473');rect(x,184,63,6,'#34334f');rect(x,160,2,27,'#85809e66');}
+  for(let y=185;y<514;y+=65){rect(99,y,33,64,'#56516f');rect(99,y,4,65,'#8d85a0');rect(99,y+61,33,4,'#26243e');}
+  rect(0,487,101,26,'#595473');rect(0,514,132,3,'#38344e');
+  for(let y=185;y<710;y+=65){rect(1518,y,30,61,'#56516f');rect(1519,y,4,62,'#8e8aa6');}
+  // 바닥: 3단 경계와 타일 질감.
+  rect(0,637,1518,32,'#88819e');rect(0,644,1518,15,'#5c5879');rect(0,668,1518,27,'#302c4b');
+  for(let x=0;x<1518;x+=65){rect(x,640,3,29,'#342f51');rect(x+3,642,59,3,'#c4bbd322');}
+  rect(489,687,1030,36,'#514c6c');rect(520,706,1028,31,'#393552');rect(520,734,1027,18,'#201e38');
+  for(let x=520;x<1530;x+=67){rect(x,699,3,35,'#25233d');rect(x+5,705,55,3,'#89839f3d');}
+  rect(0,750,1600,150,'#171427');
+}
+function lamps(){
+  for(const x of [404,992]){
+    glow(x,305,175,'#f8aa4a28');
+    ctx.fillStyle='#d2a1671a';ctx.beginPath();ctx.moveTo(x-12,237);ctx.lineTo(x-126,467);ctx.lineTo(x+126,467);ctx.lineTo(x+12,237);ctx.fill();
+    rect(x-3,183,6,40,'#100f25');rect(x-19,218,38,17,'#171426');rect(x-25,232,50,10,'#39364e');
+    rect(x-17,238,34,8,'#ffd273');rect(x-15,247,31,4,'#faad38');
+  }
+}
+function exitPortal(){
+  const x=1348,y=503,w=126,h=136;
+  glow(1410,574,115,'#38e3823a');
+  rounded(x,y,w,h,23,'#4c4867','#938dac',5);rounded(x+15,y+15,w-30,h-15,18,'#142d2b','#a0f4a6',5);
+  rounded(x+20,y+21,w-40,h-17,12,'#124e34','#2bdd7b',5);
+  glow(1409,594,69,'#5dffa14e');
+  label('⚑',1409,580,'bold 62px Arial','#ceffd6','center');
+}
+function drawDoor(){
+  const x=1024,y=468,w=170,h=172;
+  rounded(x,y,w,h,18,'#56516f','#a5a0ba',6);
+  rounded(x+15,y+12,w-30,h-6,13,'#252441','#e6aa44',5);
+  if(!doorOpen){
+    rect(x+19,y+19,w-38,h-21,'#42405e');
+    for(let i=0;i<5;i++)rect(x+28+i*24,y+22,10,147,i%2?'#57526f':'#494663');
+    rounded(1084,540,43,47,5,'#eeb436','#533c2b',3);
+    rounded(1093,524,25,28,10,null,'#f8cd65',6);
+    rounded(1102,558,8,10,3,'#38304b');
+  }else{
+    rect(x+18,y+17,w-36,h-18,'#69eeb219');
+    glow(x+w/2,y+92,79,'#66e8bb3a');
+    label('OPEN',1109,562,'bold 32px monospace','#9dffd5','center');
+  }
+  rect(1090,475,29,6,doorOpen?'#6affb2':'#ffe080');
+}
+function drawPlate(){
+  const {PLATE_X:x,PLATE_Y:y,PLATE_W:w}=SETTINGS;
+  glow(x+w/2,y+26,65,plateActive?'#72ffad55':'#ffbe4e49');
+  // 발판에서 문까지 연결된 선: 색으로 활성화 상태 표현.
+  const wire=plateActive?'#5befa9':'#c98b28';
+  ctx.strokeStyle=wire;ctx.lineWidth=6;ctx.lineJoin='round';ctx.beginPath();
+  ctx.moveTo(x+w/2,640);ctx.lineTo(x+w/2,682);ctx.lineTo(1109,682);ctx.lineTo(1109,640);ctx.stroke();
+  rect(x-6,y+22,w+12,13,'#211e32');rect(x,y+15,w,17,plateActive?'#63f4a8':'#ffbe43');
+  rect(x+10,y+9,w-20,8,plateActive?'#afffd2':'#ffda7b');
+  for(const i of [-1,0,1]){
+    const a=i*.55;ctx.save();ctx.translate(x+w/2+i*26,y-2);ctx.rotate(a);rect(-3,-15,6,17,plateActive?'#83ffd1':'#efad35');ctx.restore();
+  }
+}
+function drawCharacter(p,isGhost){
+  if(!p)return;
+  ctx.save();ctx.translate(Math.round(p.x),Math.round(p.y));
+  if(isGhost){ctx.globalAlpha=.59;glow(0,-41,65,'#6c9aff55');}
+  // 부드러운 그림자 + 픽셀아트 모양의 머리·몸통·신발.
+  rounded(-29,-7,58,9,5,isGhost?'#84b5fa2b':'#141128aa');
+  rect(-16,-45,32,33,isGhost?'#799ee8':'#f7f7fb');
+  rect(-17,-14,14,14,isGhost?'#6f8ece':'#374568');rect(5,-14,14,14,isGhost?'#6382c2':'#374568');
+  rect(-24,-44,8,26,isGhost?'#7b9de8':'#f2c29d');rect(17,-44,8,26,isGhost?'#789ce4':'#f2c29d');
+  rounded(-27,-90,54,48,14,isGhost?'#6385ce':'#372a36','#16172e',4);
+  rounded(-21,-81,45,44,12,isGhost?'#99bafa':'#f3bc98','#3e3041',3);
+  rect(-29,-85,54,14,isGhost?'#5578c2':'#322431');rect(-22,-94,42,12,isGhost?'#5275c0':'#3c2b37');
+  if(p.dir==='left'){rect(-15,-62,5,9,'#211d34');rect(0,-62,5,9,'#211d34');}
+  else{rect(-3,-62,5,9,'#211d34');rect(14,-62,5,9,'#211d34');}
+  rect(-15,-38,30,8,isGhost?'#bad0fc':'#a5bbf3');
+  ctx.restore();
+}
+function tooltip(x,y,w,h,title,subtitle,toX,toY){
+  ctx.save();ctx.shadowBlur=7;ctx.shadowColor='#17102f';
+  rounded(x,y,w,h,17,'#29263ddf','#d0baf0',3);ctx.shadowBlur=0;
+  label(title,x+w/2,y+25,'bold 26px Arial, sans-serif','#fff','center');
+  if(subtitle)label(subtitle,x+w/2,y+56,'21px Arial, sans-serif','#e9dff6','center');
+  ctx.strokeStyle='#f3f1fb';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x+w/2,y+h);ctx.lineTo(toX,toY-12);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(toX-8,toY-20);ctx.lineTo(toX,toY-10);ctx.lineTo(toX+8,toY-20);ctx.stroke();ctx.restore();
+}
+function drawHud(){
+  // 윗줄: 로고, 스테이지 이름, 왼쪽 타이머, 오른쪽 목표.
+  const header=ctx.createLinearGradient(0,0,1600,76);header.addColorStop(0,'#352e4a');header.addColorStop(1,'#29263b');rect(0,0,1600,74,header);rect(0,72,1600,4,'#8277b0');
+  label('PAST ME',43,36,'italic 900 52px monospace','#f8f5ff');rect(317,21,2,33,'#5b5570');
+  label('Stage 1',356,35,'bold 29px Arial');label('과거의 나와 협력해 탈출하자!',518,35,'bold 29px Arial','#9dd7ff');
+  rounded(24,105,297,144,20,'#2a2740f0','#ac99d2',4);
+  label('◷',49,153,'bold 64px Arial','#f9f7ff');label('다음 분신까지',132,134,'26px Arial','#bfb2d8');
+  const remaining=SETTINGS.RECORD_SECONDS-frameInLoop/SETTINGS.FPS;
+  label(`${remaining.toFixed(1)}초`,140,183,'italic 900 45px monospace','#fff');
+  rounded(48,210,248,24,12,'#29263f','#76649c',3);
+  rounded(49,211,246*(1-frameInLoop/LOOP_FRAMES),22,11,'#92d9ff');
+  rounded(1154,100,423,136,18,'#2b283ff0','#baabd9',3);
+  label('⚑  목표',1183,133,'bold 27px Arial');
+  label('①  분신을 발판 위에 서게 하여 문을 연다.',1184,170,'22px Arial');
+  label('②  열린 문을 통과해 출구에 도착한다.',1184,207,'22px Arial');
+  // 목업의 하단 조작 띠.
+  rounded(33,801,928,75,15,'#27243dea','#aa97d7',3);
+  label('조작법',55,839,'bold 28px Arial');
+  for(const [i,k] of ['A','D'].entries()){
+    rounded(166+i*43,818,36,37,5,'#33304a','#e7e2ff',3);
+    label(k,184+i*43,837,'bold 25px monospace','#fff','center');
+  }
+  label('좌우',261,840,'24px Arial');
+  rounded(341,819,40,36,5,'#33304a','#e7e2ff',3);label('W',361,837,'bold 24px monospace','#fff','center');
+  label('점프',395,839,'24px Arial');
+  rounded(465,819,40,36,5,'#33304a','#e7e2ff',3);label('S',485,837,'bold 24px monospace','#fff','center');
+  label('하강',518,839,'24px Arial');
+  rounded(591,819,43,36,5,'#343048','#eee5ff',3);label('R',612,838,'bold 24px monospace','#fff','center');
+  label('재시작',647,839,'24px Arial');
+  rounded(746,819,65,36,5,'#343048','#eee5ff',3);label('Esc',778,837,'bold 23px monospace','#fff','center');
+  label('일시정지',824,839,'24px Arial');
+  label(ghost?`분신 #${generations} · 10초 전 기록 재생 중`:'첫 10초: 이동 경로 기록 중',1540,843,'18px Arial','#a8b6d5','right');
+}
+function render(){
+  wallTiles();lamps();
+  exitPortal();drawPlate();drawDoor();
+  // 분신은 플레이어보다 뒤에 표현합니다.
+  if(ghost)drawCharacter(ghost,true);
+  drawCharacter(player||{x:SETTINGS.START_X,y:SETTINGS.START_Y,dir:'right'},false);
+  if(mode==='start'||mode==='pause'||mode==='win'){
+    // 시작 화면의 배경에서만 예시 분신을 보여주되 실제 게임에는 생성하지 않습니다.
+    if(!ghost)drawCharacter({x:586,y:638,dir:'right'},true);
+  }
+  // 목업의 안내 말풍선을 유지합니다. 분신의 말풍선은 실제 생성 시 표시.
+  // 캐릭터가 이동한 뒤에도 말풍선 화살표가 엉뚱한 대상을 가리키지 않게 합니다.
+  if(!ghost && player.x<980) tooltip(Math.max(160,Math.min(800,player.x-83)),player.x>670?347:390,165,81,'플레이어','(현재의 나)',player.x,player.y-80);
+  if((ghost||mode!=='playing') && (!ghost||ghost.x<960)) {
+    const gx=ghost?ghost.x:586,gy=ghost?ghost.y:622;
+    tooltip(Math.max(393,Math.min(900,gx-89)),gx>670?347:389,178,84,'과거의 분신','(10초 전의 나)',gx,gy-80);
+  }
+  tooltip(739,443,202,77,'발판','(밟으면 문이 열림)',846,596);
+  tooltip(973,341,257,82,'문',doorOpen?'(열림)':'(발판이 활성화되면 열림)',1109,472);
+  tooltip(1306,365,205,78,'출구','(도착하면 클리어)',1410,506);
+  drawHud();
+  if(mode==='playing'&&ghost&&onPlate(ghost)){
+    rounded(654,262,305,52,15,'#194b45df','#86f6bd',2);
+    label('분신이 발판을 밟았어요!',807,288,'bold 23px Arial','#caffdd','center');
+  }
+}
+function loop(now){
+  if(!lastTime)lastTime=now;
+  const elapsed=Math.min((now-lastTime)/1000,.05);lastTime=now;
+  if(mode==='playing'){
+    accumulator+=elapsed;
+    while(accumulator>=STEP){update();accumulator-=STEP;if(mode!=='playing')break;}
+  }else{accumulator=0;}
+  render();requestAnimationFrame(loop);
+}
+// 초기화 이후 매 프레임 화면을 그리며, 게임 시작 전엔 시간이 흐르지 않습니다.
+player={x:SETTINGS.START_X,y:SETTINGS.START_Y,vy:0,grounded:true,dir:'right'};
+ghost=null;recording=[];frameInLoop=0;generations=0;totalFrames=0;plateActive=false;doorOpen=false;crossedWithGhost=false;
+requestAnimationFrame(loop);
+</script>
 </body>
 </html>
